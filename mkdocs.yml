@@ -1,0 +1,45 @@
+site_name: Comprehensive Documentation
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+
+nav:
+  - Home: index.md
+  - Architecture:
+    - architecture/index.md
+  - Configuration:
+    - configuration/index.md
+  - Security:
+    - security/index.md
+  - Infrastructure:
+    - infrastructure/index.md
+  - Installation:
+    - installation/index.md
+  - Features:
+    - features/index.md
+  - Development:
+    - development/index.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - footnotes
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - minify:
+      minify_html: true

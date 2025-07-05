@@ -1,0 +1,63 @@
+# Email Configuration Template
+# Defines email server settings and notification preferences
+
+# SMTP Server Configuration
+smtp:
+  # Server settings
+  host: "{{ smtp_host }}"  # e.g., "smtp.gmail.com"
+  port: "{{ smtp_port }}"  # e.g., 587
+  encryption: "{{ smtp_encryption }}"  # e.g., "tls" or "ssl"
+  
+  # Authentication
+  auth:
+    username: "{{ smtp_username }}"
+    password: "{{ smtp_password }}"  # Use environment variable or secret manager
+    
+  # Connection settings
+  timeout: "{{ smtp_timeout }}"  # e.g., 30
+  max_retries: "{{ smtp_max_retries }}"  # e.g., 3
+
+# Email Notifications
+notifications:
+  # Default sender configuration
+  default_from: "{{ default_from_email }}"  # e.g., "noreply@example.com"
+  default_from_name: "{{ default_from_name }}"  # e.g., "System Notifications"
+  
+  # Alert settings
+  alerts:
+    enabled: "{{ alerts_enabled }}"  # true/false
+    recipients:
+      - "{{ alert_recipient_1 }}"  # e.g., "admin@example.com"
+    severity_levels:
+      - critical
+      - error
+      - warning
+    
+  # System notifications
+  system:
+    enabled: "{{ system_notifications_enabled }}"  # true/false
+    events:
+      - backup_complete
+      - system_update
+      - security_alert
+    
+  # Rate limiting
+  rate_limit:
+    max_per_hour: "{{ max_emails_per_hour }}"  # e.g., 100
+    max_per_day: "{{ max_emails_per_day }}"  # e.g., 1000
+
+# Documentation:
+# - smtp_host: SMTP server hostname
+# - smtp_port: SMTP server port (usually 587 for TLS, 465 for SSL)
+# - smtp_encryption: Email encryption method
+# - smtp_username: SMTP authentication username
+# - smtp_password: SMTP authentication password (use secure storage)
+# - smtp_timeout: Connection timeout in seconds
+# - smtp_max_retries: Maximum connection retry attempts
+# - default_from_email: Default sender email address
+# - default_from_name: Default sender display name
+# - alerts_enabled: Enable/disable alert emails
+# - alert_recipient_1: Primary alert recipient
+# - system_notifications_enabled: Enable/disable system notifications
+# - max_emails_per_hour: Hourly email rate limit
+# - max_emails_per_day: Daily email rate limit
