@@ -1,0 +1,275 @@
+name: Prerequisites Health Check
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'scripts/prereqs.sh'
+      - 'scripts/detect_k8s.*'
+      - '.github/workflows/prereq-health-check.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'scripts/prereqs.sh'
+      - 'scripts/detect_k8s.*'
+      - '.github/workflows/prereq-health-check.yml'
+  schedule:
+    # Run daily at 6 AM UTC to catch dependency drift
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      verbose:
+        description: 'Enable verbose output'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  prerequisite-check:
+    name: Prerequisites Check
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            check-distro-tools: true
+          - os: macos-latest
+            check-distro-tools: false
+          - os: windows-latest
+            check-distro-tools: false
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+
+    - name: Set up environment (Ubuntu/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        chmod +x scripts/prereqs.sh
+        chmod +x scripts/detect_k8s.sh
+        chmod +x scripts/test_detect_k8s.sh
+
+    - name: Set up environment (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        chmod +x scripts/prereqs.sh
+        chmod +x scripts/detect_k8s.sh
+        chmod +x scripts/test_detect_k8s.sh
+
+    - name: Install package managers (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        # Ensure snap is available for some tools
+        sudo apt-get install -y snapd
+
+    - name: Install package managers (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Homebrew should already be available on GitHub Actions runners
+        brew update
+
+    - name: Install package managers (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: powershell
+      run: |
+        # winget should be available on Windows runners
+        winget source update
+
+    - name: Run prerequisite check (check-only)
+      shell: bash
+      run: |
+        if [[ "${{ github.event.inputs.verbose }}" == "true" ]]; then
+          VERBOSE_FLAG="--verbose"
+        else
+          VERBOSE_FLAG=""
+        fi
+        
+        if [[ "${{ matrix.check-distro-tools }}" == "false" ]]; then
+          SKIP_DISTRO_FLAG="--skip-distro-tools"
+        else
+          SKIP_DISTRO_FLAG=""
+        fi
+        
+        ./scripts/prereqs.sh --check-only $VERBOSE_FLAG $SKIP_DISTRO_FLAG
+
+    - name: Test Kubernetes detection
+      shell: bash
+      run: |
+        ./scripts/test_detect_k8s.sh
+
+    - name: Install missing prerequisites (simulation)
+      if: matrix.os == 'ubuntu-latest'
+      shell: bash
+      run: |
+        # Run a simulation installation to test the installation logic
+        # without actually installing everything (to avoid CI time limits)
+        echo "Testing installation logic..."
+        
+        # Test OS detection
+        source scripts/prereqs.sh
+        detect_os
+        echo "Detected OS: $OS_TYPE"
+        echo "Detected Package Manager: $PKG_MANAGER"
+        
+        # Test package name resolution
+        for tool in git kubectl helm aws yq gh; do
+          package=$(get_package_name "$tool" "$PKG_MANAGER")
+          echo "Tool: $tool -> Package: $package"
+        done
+
+    - name: Check logs and output
+      if: always()
+      shell: bash
+      run: |
+        echo "=== Log file contents ==="
+        if [[ -f logs/prereqs.log ]]; then
+          cat logs/prereqs.log
+        else
+          echo "No log file found"
+        fi
+        
+        echo "=== Available tools ==="
+        for tool in git kubectl helm aws yq gh microk8s k3s; do
+          if command -v "$tool" >/dev/null 2>&1; then
+            echo "$tool: AVAILABLE"
+          else
+            echo "$tool: NOT AVAILABLE"
+          fi
+        done
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Run shellcheck on prerequisites script
+      uses: ludeeus/action-shellcheck@2.0.0
+      with:
+        scandir: 'scripts'
+        format: gcc
+        severity: warning
+
+    - name: Check for secrets
+      uses: gitleaks/gitleaks-action@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Validate script permissions
+      run: |
+        # Ensure scripts have appropriate permissions
+        ls -la scripts/
+        
+        # Check that executable scripts have proper shebangs
+        for script in scripts/*.sh; do
+          if [[ -x "$script" ]]; then
+            if ! head -n1 "$script" | grep -q '^#!/'; then
+              echo "ERROR: Executable script $script missing shebang"
+              exit 1
+            fi
+          fi
+        done
+
+  documentation-check:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Verify script documentation
+      run: |
+        # Check that the prerequisite script has proper documentation
+        if ! grep -q "Author: Tyler Zervas" scripts/prereqs.sh; then
+          echo "ERROR: Missing author attribution"
+          exit 1
+        fi
+        
+        if ! grep -q "License: MIT" scripts/prereqs.sh; then
+          echo "ERROR: Missing license information"
+          exit 1
+        fi
+        
+        if ! grep -q "Usage:" scripts/prereqs.sh; then
+          echo "ERROR: Missing usage documentation"
+          exit 1
+        fi
+        
+        echo "Documentation checks passed"
+
+    - name: Check README mentions prerequisites
+      run: |
+        if [[ -f README.md ]]; then
+          echo "Checking if README mentions prerequisites..."
+          if grep -qi "prerequisite\|requirement" README.md; then
+            echo "README mentions prerequisites"
+          else
+            echo "WARNING: README should mention prerequisites"
+          fi
+        fi
+
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    needs: [prerequisite-check, security-check]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up environment
+      run: |
+        chmod +x scripts/prereqs.sh
+        chmod +x scripts/detect_k8s.sh
+        chmod +x scripts/test_detect_k8s.sh
+
+    - name: Test script with various flags
+      run: |
+        echo "Testing --help flag"
+        ./scripts/prereqs.sh --help
+        
+        echo "Testing --check-only flag"
+        ./scripts/prereqs.sh --check-only
+        
+        echo "Testing --check-only --verbose flags"
+        ./scripts/prereqs.sh --check-only --verbose
+        
+        echo "Testing --check-only --skip-distro-tools flags"
+        ./scripts/prereqs.sh --check-only --skip-distro-tools
+
+    - name: Test error handling
+      run: |
+        # Test that script handles invalid arguments gracefully
+        set +e
+        ./scripts/prereqs.sh --invalid-flag 2>/dev/null
+        exit_code=$?
+        set -e
+        
+        if [[ $exit_code -eq 0 ]]; then
+          echo "ERROR: Script should fail with invalid arguments"
+          exit 1
+        else
+          echo "Error handling test passed"
+        fi
+
+    - name: Verify idempotency
+      run: |
+        echo "Running prerequisite check twice to verify idempotency"
+        ./scripts/prereqs.sh --check-only --verbose > first_run.log 2>&1
+        ./scripts/prereqs.sh --check-only --verbose > second_run.log 2>&1
+        
+        echo "=== First run ==="
+        cat first_run.log
+        echo "=== Second run ==="
+        cat second_run.log
+        
+        echo "Idempotency test completed"

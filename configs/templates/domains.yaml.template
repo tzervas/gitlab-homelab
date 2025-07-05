@@ -1,0 +1,81 @@
+# Domain Configuration Template
+# Defines domain settings including DNS records and SSL certificates
+
+# Domain Settings
+domains:
+  # Primary domain configuration
+  primary_domain: "{{ primary_domain }}"  # e.g., "example.com"
+  
+  # DNS Configuration
+  dns:
+    provider: "{{ dns_provider }}"  # e.g., "cloudflare", "route53"
+    ttl: "{{ dns_ttl }}"  # e.g., 3600
+    
+    # DNS Records
+    records:
+      # A Records
+      a_records:
+        - name: "{{ a_record_name }}"  # e.g., "@" or "www"
+          value: "{{ a_record_ip }}"  # e.g., "203.0.113.1"
+          ttl: "{{ a_record_ttl }}"  # e.g., 3600
+      
+      # CNAME Records
+      cname_records:
+        - name: "{{ cname_record_name }}"  # e.g., "mail"
+          value: "{{ cname_record_value }}"  # e.g., "mail.example.com"
+      
+      # MX Records
+      mx_records:
+        - priority: "{{ mx_priority }}"  # e.g., 10
+          value: "{{ mx_value }}"  # e.g., "mail.example.com"
+
+# SSL/TLS Configuration
+ssl:
+  # Certificate settings
+  provider: "{{ ssl_provider }}"  # e.g., "letsencrypt", "commercial"
+  
+  # Let's Encrypt configuration
+  letsencrypt:
+    email: "{{ le_email }}"
+    staging: "{{ le_staging }}"  # true/false
+    renewal_days: "{{ le_renewal_days }}"  # e.g., 30
+  
+  # Certificate configuration
+  certificates:
+    - domain: "{{ cert_domain }}"  # e.g., "example.com"
+      sans:
+        - "{{ cert_san_1 }}"  # e.g., "www.example.com"
+      key_type: "{{ cert_key_type }}"  # e.g., "rsa" or "ecc"
+      key_size: "{{ cert_key_size }}"  # e.g., 2048 or 4096
+
+  # SSL Security Settings
+  security:
+    min_tls_version: "{{ min_tls_version }}"  # e.g., "TLS1.2"
+    ciphers:
+      - "{{ cipher_1 }}"  # e.g., "ECDHE-RSA-AES256-GCM-SHA384"
+    hsts_enabled: "{{ hsts_enabled }}"  # true/false
+    ocsp_stapling: "{{ ocsp_stapling }}"  # true/false
+
+# Documentation:
+# - primary_domain: Main domain name
+# - dns_provider: DNS service provider
+# - dns_ttl: Default TTL for DNS records
+# - a_record_name: Hostname for A record
+# - a_record_ip: IP address for A record
+# - a_record_ttl: TTL for specific A record
+# - cname_record_name: Hostname for CNAME record
+# - cname_record_value: Target for CNAME record
+# - mx_priority: Priority for MX record
+# - mx_value: Mail server hostname
+# - ssl_provider: SSL certificate provider
+# - le_email: Let's Encrypt account email
+# - le_staging: Use Let's Encrypt staging environment
+# - le_renewal_days: Days before certificate renewal
+# - cert_domain: Domain for SSL certificate
+# - cert_san_1: Subject Alternative Name
+# - cert_key_type: Certificate key type
+# - cert_key_size: Certificate key size
+# - min_tls_version: Minimum TLS version
+# - cipher_1: Allowed cipher suite
+# - hsts_enabled: HTTP Strict Transport Security
+# - ocsp_stapling: OCSP Stapling enabled

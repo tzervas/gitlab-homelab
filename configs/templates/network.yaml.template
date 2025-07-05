@@ -1,0 +1,57 @@
+# Network Configuration Template
+# This template defines network settings including CIDR blocks and VLANs
+
+# Network Settings
+network:
+  # Main network CIDR block
+  cidr_block: "{{ network_cidr }}"  # e.g., "10.0.0.0/16"
+  
+  # Subnet Configuration
+  subnets:
+    # Public subnet settings
+    public:
+      cidr: "{{ public_subnet_cidr }}"  # e.g., "10.0.1.0/24"
+      availability_zone: "{{ az }}"
+    
+    # Private subnet settings
+    private:
+      cidr: "{{ private_subnet_cidr }}"  # e.g., "10.0.2.0/24"
+      availability_zone: "{{ az }}"
+
+  # VLAN Configuration
+  vlans:
+    # Application VLAN
+    app:
+      id: "{{ app_vlan_id }}"  # e.g., 100
+      description: "Application Network"
+      subnet: "{{ app_vlan_subnet }}"  # e.g., "10.0.10.0/24"
+    
+    # Database VLAN
+    db:
+      id: "{{ db_vlan_id }}"  # e.g., 200
+      description: "Database Network"
+      subnet: "{{ db_vlan_subnet }}"  # e.g., "10.0.20.0/24"
+
+  # Network Security
+  security:
+    # Allowed IP ranges for administrative access
+    admin_cidrs:
+      - "{{ admin_cidr_1 }}"  # e.g., "192.168.1.0/24"
+    
+    # VPN Configuration
+    vpn:
+      enabled: "{{ vpn_enabled }}"  # true/false
+      protocol: "{{ vpn_protocol }}"  # e.g., "wireguard" or "openvpn"
+      port: "{{ vpn_port }}"  # e.g., 51820
+
+# Documentation:
+# - network_cidr: Main CIDR block for the entire network
+# - public_subnet_cidr: CIDR block for public-facing resources
+# - private_subnet_cidr: CIDR block for private resources
+# - az: Availability zone identifier
+# - app_vlan_id: VLAN ID for application network (100-4000)
+# - db_vlan_id: VLAN ID for database network (100-4000)
+# - admin_cidr_1: Allowed administrative access CIDR
+# - vpn_enabled: Enable/disable VPN access
+# - vpn_protocol: VPN protocol selection
+# - vpn_port: VPN service port

@@ -1,0 +1,98 @@
+# SSO Configuration Template
+# Defines Single Sign-On provider settings and authentication parameters
+
+# SSO Provider Configuration
+sso:
+  # Provider Settings
+  provider:
+    type: "{{ sso_provider_type }}"  # e.g., "okta", "azure_ad", "google"
+    name: "{{ sso_provider_name }}"  # e.g., "Corporate SSO"
+    
+  # Application Settings
+  application:
+    client_id: "{{ client_id }}"
+    client_secret: "{{ client_secret }}"  # Use environment variable or secret manager
+    redirect_uri: "{{ redirect_uri }}"  # e.g., "https://app.example.com/callback"
+    
+  # Protocol Settings
+  protocol:
+    type: "{{ protocol_type }}"  # e.g., "oidc", "saml"
+    version: "{{ protocol_version }}"  # e.g., "2.0"
+    
+    # SAML-specific settings
+    saml:
+      entity_id: "{{ saml_entity_id }}"
+      assertion_url: "{{ saml_assertion_url }}"
+      certificate: "{{ saml_certificate }}"
+      
+    # OIDC-specific settings
+    oidc:
+      authorization_endpoint: "{{ oidc_auth_endpoint }}"
+      token_endpoint: "{{ oidc_token_endpoint }}"
+      userinfo_endpoint: "{{ oidc_userinfo_endpoint }}"
+      jwks_uri: "{{ oidc_jwks_uri }}"
+
+  # Authentication Settings
+  authentication:
+    allowed_domains:
+      - "{{ allowed_domain_1 }}"  # e.g., "example.com"
+    
+    session:
+      lifetime: "{{ session_lifetime }}"  # e.g., 3600
+      idle_timeout: "{{ session_idle_timeout }}"  # e.g., 300
+      
+    mfa:
+      enabled: "{{ mfa_enabled }}"  # true/false
+      methods:
+        - "{{ mfa_method_1 }}"  # e.g., "totp", "push"
+
+  # User Provisioning
+  provisioning:
+    enabled: "{{ provisioning_enabled }}"  # true/false
+    mode: "{{ provisioning_mode }}"  # e.g., "auto", "manual"
+    default_role: "{{ default_role }}"  # e.g., "user"
+    
+    mapping:
+      username: "{{ username_attribute }}"  # e.g., "email"
+      email: "{{ email_attribute }}"
+      first_name: "{{ firstname_attribute }}"
+      last_name: "{{ lastname_attribute }}"
+      groups: "{{ groups_attribute }}"
+
+# Documentation:
+# - sso_provider_type: SSO provider service (okta, azure_ad, google)
+# - sso_provider_name: Display name for the SSO provider
+# - client_id: OAuth/OIDC client identifier
+# - client_secret: OAuth/OIDC client secret (use secure storage)
+# - redirect_uri: OAuth/OIDC callback URL
+# - protocol_type: Authentication protocol (oidc, saml)
+# - protocol_version: Protocol version
+# - saml_entity_id: SAML Entity ID
+# - saml_assertion_url: SAML assertion endpoint
+# - saml_certificate: SAML certificate
+# - oidc_auth_endpoint: OIDC authorization endpoint
+# - oidc_token_endpoint: OIDC token endpoint
+# - oidc_userinfo_endpoint: OIDC user info endpoint
+# - oidc_jwks_uri: OIDC JWKS URI
+# - allowed_domain_1: Allowed email domain
+# - session_lifetime: Session duration in seconds
+# - session_idle_timeout: Idle timeout in seconds
+# - mfa_enabled: Enable/disable MFA
+# - mfa_method_1: MFA method
+# - provisioning_enabled: Enable/disable user provisioning
+# - provisioning_mode: User provisioning mode
+# - default_role: Default role for new users
+# - username_attribute: Username attribute mapping
+# - email_attribute: Email attribute mapping
+# - firstname_attribute: First name attribute mapping
+# - lastname_attribute: Last name attribute mapping
+# - groups_attribute: Groups attribute mapping
+
+# Security Best Practices:
+# 1. Always use environment variables or secret management for sensitive values
+# 2. Enable MFA when possible
+# 3. Set appropriate session timeouts
+# 4. Use secure protocols and current versions
+# 5. Implement proper attribute mapping
+# 6. Regular audit of allowed domains
+# 7. Monitor and log authentication events
