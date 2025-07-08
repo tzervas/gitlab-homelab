@@ -249,3 +249,4 @@ local.env
 .env.local
 .env.*.local
 config.local.*
+.local/
