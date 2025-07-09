@@ -1,0 +1,219 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Configuration Schema",
+  "description": "JSON Schema for validating configuration files",
+  "type": "object",
+  "definitions": {
+    "network": {
+      "type": "object",
+      "required": ["cidr_block", "subnets"],
+      "properties": {
+        "cidr_block": {
+          "type": "string",
+          "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$",
+          "description": "Main network CIDR block"
+        },
+        "subnets": {
+          "type": "object",
+          "required": ["public", "private"],
+          "properties": {
+            "public": {
+              "type": "object",
+              "required": ["cidr", "availability_zone"],
+              "properties": {
+                "cidr": {
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+                },
+                "availability_zone": {
+                  "type": "string"
+                }
+              }
+            },
+            "private": {
+              "type": "object",
+              "required": ["cidr", "availability_zone"],
+              "properties": {
+                "cidr": {
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+                },
+                "availability_zone": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "vlans": {
+          "type": "object",
+          "properties": {
+            "app": {
+              "type": "object",
+              "required": ["id", "description", "subnet"],
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 4094
+                },
+                "description": {
+                  "type": "string"
+                },
+                "subnet": {
+                  "type": "string",
+                  "pattern": "^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "email": {
+      "type": "object",
+      "required": ["smtp", "notifications"],
+      "properties": {
+        "smtp": {
+          "type": "object",
+          "required": ["host", "port", "encryption", "auth"],
+          "properties": {
+            "host": {
+              "type": "string"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "encryption": {
+              "type": "string",
+              "enum": ["tls", "ssl", "none"]
+            },
+            "auth": {
+              "type": "object",
+              "required": ["username", "password"],
+              "properties": {
+                "username": {
+                  "type": "string"
+                },
+                "password": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "notifications": {
+          "type": "object",
+          "required": ["default_from"],
+          "properties": {
+            "default_from": {
+              "type": "string",
+              "format": "email"
+            }
+          }
+        }
+      }
+    },
+    "domains": {
+      "type": "object",
+      "required": ["primary_domain", "dns", "ssl"],
+      "properties": {
+        "primary_domain": {
+          "type": "string",
+          "format": "hostname"
+        },
+        "dns": {
+          "type": "object",
+          "required": ["provider", "ttl"],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["cloudflare", "route53", "azure_dns"]
+            },
+            "ttl": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "ssl": {
+          "type": "object",
+          "required": ["provider", "certificates"],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["letsencrypt", "commercial"]
+            },
+            "certificates": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["domain", "key_type"],
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "format": "hostname"
+                  },
+                  "key_type": {
+                    "type": "string",
+                    "enum": ["rsa", "ecc"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "sso": {
+      "type": "object",
+      "required": ["provider", "application", "protocol"],
+      "properties": {
+        "provider": {
+          "type": "object",
+          "required": ["type", "name"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["okta", "azure_ad", "google"]
+            },
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "application": {
+          "type": "object",
+          "required": ["client_id", "client_secret", "redirect_uri"],
+          "properties": {
+            "client_id": {
+              "type": "string"
+            },
+            "client_secret": {
+              "type": "string"
+            },
+            "redirect_uri": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "protocol": {
+          "type": "object",
+          "required": ["type", "version"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["oidc", "saml"]
+            },
+            "version": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

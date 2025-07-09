@@ -27,7 +27,7 @@ A comprehensive GitLab HomeLab infrastructure project with dynamic Kubernetes ba
 - [ ] **CI/CD Pipeline**: Comprehensive pipeline automation
 - [ ] **DNS Strategy**: Dynamic DNS management and configuration
 - [ ] **Monitoring Setup**: Observability and monitoring stack
-- [ ] **Prerequisite Manager**: Automated dependency installation and management
+- [x] **Prerequisite Manager**: Automated dependency installation and management
 - [ ] **Security Hardening**: Security policies and hardening configurations
 
 ## 🏗️ Project Structure
@@ -53,10 +53,45 @@ A comprehensive GitLab HomeLab infrastructure project with dynamic Kubernetes ba
 
 ### Prerequisites
 
-- Git with GPG signing configured
-- Python 3.12+ (recommended)
-- Docker (for DevContainer development)
-- Optional: kubectl, microk8s, or k3s for testing
+This project includes an automated prerequisite management system that detects your operating system and installs required tools.
+
+#### Automated Installation
+
+```bash
+# Check what's currently installed
+./scripts/prereqs.sh --check-only --verbose
+
+# Install missing prerequisites
+./scripts/prereqs.sh
+
+# Install only core tools (skip Kubernetes distributions)
+./scripts/prereqs.sh --skip-distro-tools
+```
+
+#### Required Tools
+
+- **Git**: Version control system with GPG signing configured
+- **kubectl**: Kubernetes command-line tool
+- **helm**: Kubernetes package manager
+- **aws-cli**: AWS command-line interface
+- **yq**: YAML processor
+- **gh**: GitHub CLI
+- **Python 3.12+**: For Python-based tools
+- **Docker**: For DevContainer development
+
+#### Optional Tools (Linux only)
+
+- **microk8s**: Lightweight Kubernetes distribution
+- **k3s**: Lightweight Kubernetes distribution
+
+#### Supported Platforms
+
+The prerequisite script automatically detects your platform and uses the appropriate package manager:
+
+- **Linux**: `apt` (Ubuntu/Debian), `yum`/`dnf` (RHEL/CentOS/Fedora), `pacman` (Arch)
+- **macOS**: `brew` (Homebrew)
+- **Windows**: `winget` (Windows Package Manager)
+- **WSL**: Windows Subsystem for Linux support
 
 ### Using the Kubernetes Detection
 
