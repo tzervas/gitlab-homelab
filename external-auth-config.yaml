@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-auth-config
+  namespace: gitlab
+data:
+  oidc-config.yaml: |
+    name: OIDC Provider
+    issuer: https://your-oidc-provider.com
+    clientId: gitlab-client
+    clientSecret: ${OIDC_CLIENT_SECRET}
+    redirectUri: https://gitlab.local/auth/oidc/callback
+    scopes: ["openid", "profile", "email"]
+    responseType: "code"
+    tokenEndpoint: "https://your-oidc-provider.com/oauth/token"
+    userInfoEndpoint: "https://your-oidc-provider.com/oauth/userinfo"
+
+  ldap-config.yaml: |
+    host: ldap.example.com
+    port: 389
+    encryption: "start_tls"
+    bind_dn: "cn=gitlab,dc=example,dc=com"
+    password: ${LDAP_BIND_PASSWORD}
+    base: "dc=example,dc=com"
+    user_filter: "(objectClass=person)"
+    attributes:
+      username: ["uid", "userid", "sAMAccountName"]
+      email: ["mail", "email", "userPrincipalName"]
+      name: "cn"
+      first_name: "givenName"
+      last_name: "sn"

@@ -62,7 +62,7 @@ class KubernetesDetector:
                 check=False
             )
             return result.returncode == 0, result.stdout
-        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
             return False, ""
 
     def get_kubectl_version(self, kubectl_cmd: str) -> str:

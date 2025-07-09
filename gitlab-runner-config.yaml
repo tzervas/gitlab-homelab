@@ -1,0 +1,94 @@
+---
+# Service Account Configuration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: gitlab-runner
+  namespace: gitlab
+  annotations:
+    kubernetes.io/enforce-mountable-secrets: "true"
+automountServiceAccountToken: false  # Disable automatic token mounting for security
+---
+# Role Definition
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: gitlab-runner-role
+  namespace: gitlab
+rules:
+- apiGroups: [""]
+  resources: ["pods", "secrets"]
+  verbs: ["get", "list", "watch", "create", "delete"]
+- apiGroups: [""]
+  resources: ["pods/exec", "pods/log"]
+  verbs: ["get", "list", "create"]
+---
+# Role Binding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitlab-runner-binding
+  namespace: gitlab
+subjects:
+- kind: ServiceAccount
+  name: gitlab-runner
+  namespace: gitlab
+roleRef:
+  kind: Role
+  name: gitlab-runner-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Token Configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-runner-token
+  namespace: gitlab
+  annotations:
+    kubernetes.io/service-account.name: gitlab-runner
+    # Enable automatic token rotation every 24 hours
+    kubernetes.io/token-expiration-seconds: "86400"
+type: kubernetes.io/service-account-token
+---
+# Rate Limiting Configuration
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitlab-runner-network-policy
+  namespace: gitlab
+spec:
+  podSelector:
+    matchLabels:
+      app: gitlab-runner
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: gitlab
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: gitlab
+    ports:
+    - protocol: TCP
+      port: 443
+---
+# Secret Encryption Configuration
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+metadata:
+  name: gitlab-encryption-config
+spec:
+  resources:
+  - resources:
+    - secrets
+    providers:
+    - aescbc:
+        keys:
+        - name: key1
+          secret: ${ENCRYPTION_KEY}
+    - identity: {}

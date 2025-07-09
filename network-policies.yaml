@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitlab-network-policy
+  namespace: gitlab
+spec:
+  podSelector:
+    matchLabels:
+      app: gitlab
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: allowed-ns
+---
+# Default deny all ingress traffic policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress

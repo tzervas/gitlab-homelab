@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: token-rotation-policy
+  namespace: gitlab
+data:
+  policy.yaml: |
+    rotationSchedule: "0 0 1 * *"  # Rotate tokens monthly
+    tokenLifetime: 30d
+    notificationEmail: admin@gitlab.local
+    retentionPolicy:
+      keepLastN: 2
+      minAge: 7d

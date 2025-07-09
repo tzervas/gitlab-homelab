@@ -1,0 +1,80 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: firewall-config-updater
+  namespace: kube-system
+spec:
+  schedule: "*/15 * * * *"  # Run every 15 minutes
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: firewall-updater
+          containers:
+          - name: firewall-updater
+            image: python:3.9-slim
+            env:
+            - name: OPNSENSE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-credentials
+                  key: api-key
+            - name: OPNSENSE_API_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: opnsense-credentials
+                  key: api-secret
+            - name: OPNSENSE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: firewall-config
+                  key: opnsense-url
+            command:
+            - /bin/sh
+            - -c
+            - |
+              pip install kubernetes pyyaml requests
+              python3 /scripts/generate_firewall_config.py --apply
+            volumeMounts:
+            - name: config-script
+              mountPath: /scripts
+          volumes:
+          - name: config-script
+            configMap:
+              name: firewall-config-script
+              defaultMode: 0755
+          restartPolicy: OnFailure
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: firewall-updater
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: firewall-updater
+rules:
+- apiGroups: [""]
+  resources: ["services", "pods", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses", "networkpolicies"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: firewall-updater
+subjects:
+- kind: ServiceAccount
+  name: firewall-updater
+  namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: firewall-updater
+  apiGroup: rbac.authorization.k8s.io
