@@ -1,0 +1,150 @@
+---
+# Default deny all ingress traffic across all namespaces
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: default
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# Allow DNS resolution
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: kube-system
+spec:
+  podSelector:
+    matchLabels:
+      k8s-app: kube-dns
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+---
+# GitLab application network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gitlab-network-policy
+  namespace: gitlab
+spec:
+  podSelector:
+    matchLabels:
+      app: gitlab
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    # Allow ingress from authorized namespaces
+    - namespaceSelector:
+        matchLabels:
+          access: gitlab-allowed
+    # Allow ingress from load balancer
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    ports:
+    - port: 80
+      protocol: TCP
+    - port: 443
+      protocol: TCP
+    - port: 22
+      protocol: TCP  # For Git SSH access
+  egress:
+  - to:
+    # Allow access to monitoring
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    # Allow access to logging
+    - namespaceSelector:
+        matchLabels:
+          name: logging
+    # Allow external DNS
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+---
+# Monitoring network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: monitoring-network-policy
+  namespace: monitoring
+spec:
+  podSelector:
+    matchLabels:
+      app: prometheus
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    # Allow metrics scraping from all namespaces
+    - namespaceSelector: {}
+    ports:
+    - port: 9090
+      protocol: TCP
+---
+# Logging network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: logging-network-policy
+  namespace: logging
+spec:
+  podSelector:
+    matchLabels:
+      app: fluentd
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    # Allow log shipping from all namespaces
+    - namespaceSelector: {}
+    ports:
+    - port: 24224
+      protocol: TCP
+---
+# Ingress Controller network policy
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ingress-nginx-policy
+  namespace: ingress-nginx
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ingress-nginx
+  policyTypes:
+  - Ingress
+  ingress:
+  - ports:
+    - port: 80
+      protocol: TCP
+    - port: 443
+      protocol: TCP
+    from:
+    - ipBlock:
+        cidr: 0.0.0.0/0  # Consider restricting this to your network range
+        except:
+        - 10.0.0.0/8
+        - 172.16.0.0/12
+        - 192.168.0.0/16

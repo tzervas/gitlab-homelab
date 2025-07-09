@@ -1,0 +1,155 @@
+---
+- name: Configure OPNsense for GitLab Homelab
+  hosts: opnsense
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../.env"
+
+  tasks:
+    - name: Create alias for Kubernetes nodes
+      opnsense_alias:
+        name: k8s_nodes
+        type: host
+        content: "{{ k8s_node_ips | join(' ') }}"
+        description: "Kubernetes cluster nodes"
+        state: present
+
+    - name: Create alias for ingress IPs
+      opnsense_alias:
+        name: k8s_ingress
+        type: host
+        content: "{{ K8S_INGRESS_IP }}"
+        description: "Kubernetes ingress endpoints"
+        state: present
+
+    # Firewall rules for Kubernetes cluster
+    - name: Configure firewall rules for Kubernetes
+      opnsense_firewall_rule:
+        name: "{{ item.name }}"
+        action: "{{ item.action }}"
+        interface: "{{ item.interface }}"
+        source: "{{ item.source }}"
+        destination: "{{ item.destination }}"
+        protocol: "{{ item.protocol }}"
+        destination_port: "{{ item.destination_port | default(omit) }}"
+        description: "{{ item.description }}"
+        state: present
+      loop:
+        # Allow K8s API Server
+        - name: "allow_k8s_api"
+          action: "pass"
+          interface: "lan"
+          source: "k8s_nodes"
+          destination: "k8s_nodes"
+          protocol: "tcp"
+          destination_port: "6443"
+          description: "Allow Kubernetes API Server traffic"
+
+        # Allow kubelet communication
+        - name: "allow_kubelet"
+          action: "pass"
+          interface: "lan"
+          source: "k8s_nodes"
+          destination: "k8s_nodes"
+          protocol: "tcp"
+          destination_port: "10250"
+          description: "Allow kubelet communication"
+
+        # Allow node ports
+        - name: "allow_nodeport"
+          action: "pass"
+          interface: "lan"
+          source: "any"
+          destination: "k8s_nodes"
+          protocol: "tcp"
+          destination_port: "30000-32767"
+          description: "Allow NodePort service range"
+
+        # Allow ingress HTTP/HTTPS
+        - name: "allow_ingress_http"
+          action: "pass"
+          interface: "wan"
+          source: "any"
+          destination: "k8s_ingress"
+          protocol: "tcp"
+          destination_port: "80,443"
+          description: "Allow HTTP/HTTPS to ingress"
+
+        # Allow GitLab SSH
+        - name: "allow_gitlab_ssh"
+          action: "pass"
+          interface: "wan"
+          source: "any"
+          destination: "k8s_ingress"
+          protocol: "tcp"
+          destination_port: "22"
+          description: "Allow SSH for GitLab"
+
+        # Allow internal DNS
+        - name: "allow_dns_internal"
+          action: "pass"
+          interface: "lan"
+          source: "k8s_nodes"
+          destination: "k8s_nodes"
+          protocol: "tcp/udp"
+          destination_port: "53"
+          description: "Allow internal DNS"
+
+        # Allow metrics collection
+        - name: "allow_metrics"
+          action: "pass"
+          interface: "lan"
+          source: "k8s_nodes"
+          destination: "k8s_nodes"
+          protocol: "tcp"
+          destination_port: "9090,9100"
+          description: "Allow metrics collection"
+
+    # IDS/IPS Configuration
+    - name: Enable and configure Suricata
+      opnsense_ids_policy:
+        enabled: true
+        ips: true
+        promiscuous: true
+        interfaces: ["lan", "wan"]
+        homeNet: "{{ internal_network_cidr }}"
+        rules:
+          - "emerging-threats"
+          - "snort-emerging-web"
+          - "snort-emerging-dos"
+          - "snort-emerging-exploit"
+        state: present
+
+    # WAF Configuration for ingress
+    - name: Configure WAF for ingress protection
+      opnsense_waf:
+        enabled: true
+        interfaces: ["wan"]
+        targets: ["k8s_ingress"]
+        rulesets:
+          - "OWASP_CRS"
+          - "Trustwave"
+        custom_rules:
+          - rule: "SecRule REQUEST_URI \"@contains /api/\" \"id:1000,phase:1,t:none,deny,status:403,msg:'API access restricted'\""
+        state: present
+
+    # Setup Gateway Monitoring
+    - name: Configure gateway monitoring
+      opnsense_gateway_monitoring:
+        dpinger_enabled: true
+        interval: 1
+        loss_interval: 2
+        time_period: 60
+        alert_interval: 1
+        state: present
+
+    # Configure High Availability (if enabled)
+    - name: Configure CARP for HA
+      opnsense_ha:
+        enabled: "{{ ha_enabled | default(false) }}"
+        interface: wan
+        vhid: 1
+        password: "{{ ha_password }}"
+        status: MASTER
+        state: present
+      when: ha_enabled | default(false)

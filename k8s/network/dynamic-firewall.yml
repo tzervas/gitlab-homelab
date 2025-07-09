@@ -1,0 +1,69 @@
+---
+- name: Configure dynamic firewall rules
+  hosts: opnsense
+  gather_facts: true
+  vars_files:
+    - "{{ playbook_dir }}/../.env"
+
+  tasks:
+    - name: Install required Python packages
+      pip:
+        name:
+          - kubernetes
+          - pyyaml
+          - requests
+        state: present
+      delegate_to: localhost
+
+    - name: Generate firewall configuration
+      command: 
+        cmd: python3 generate_firewall_config.py
+        chdir: "{{ playbook_dir }}"
+      register: firewall_config
+      delegate_to: localhost
+
+    - name: Parse generated configuration
+      set_fact:
+        fw_config: "{{ firewall_config.stdout | from_yaml }}"
+
+    - name: Configure OPNsense aliases
+      opnsense_alias:
+        name: "{{ item.key }}"
+        type: "{{ item.value.type }}"
+        content: "{{ item.value.content }}"
+        description: "{{ item.value.description }}"
+        state: present
+      loop: "{{ fw_config.aliases | dict2items }}"
+
+    - name: Configure firewall rules
+      opnsense_firewall_rule:
+        name: "{{ item.name }}"
+        action: "{{ item.action }}"
+        interface: "{{ item.interface }}"
+        source: "{{ item.source }}"
+        destination: "{{ item.destination }}"
+        protocol: "{{ item.protocol }}"
+        destination_port: "{{ item.destination_port | default(omit) }}"
+        description: "{{ item.description }}"
+        state: present
+      loop: "{{ fw_config.rules }}"
+
+    - name: Configure WAF rules
+      opnsense_waf:
+        enabled: "{{ fw_config.waf.enabled }}"
+        rules: "{{ fw_config.waf.rules }}"
+        state: present
+      when: fw_config.waf.enabled | bool
+
+    - name: Configure IDS for internal networks
+      opnsense_ids_policy:
+        enabled: true
+        ips: true
+        promiscuous: true
+        interfaces: ["lan", "wan"]
+        homeNet: "{{ fw_config.internal_networks | join(',') }}"
+        rules:
+          - "emerging-threats"
+          - "snort-emerging-web"
+          - "snort-emerging-dos"
+        state: present
