@@ -1,0 +1,25 @@
+apiVersion: audit.k8s.io/v1
+kind: Policy
+metadata:
+  name: gitlab-audit-policy
+rules:
+# Log metadata for all pod and service operations
+- level: Metadata
+  resources:
+  - group: ""
+    resources: ["pods", "services"]
+# Log all auth-related operations at Request level
+- level: Request
+  resources:
+  - group: "authentication.k8s.io"
+    resources: ["*"]
+# Log all RBAC changes at RequestResponse level
+- level: RequestResponse
+  resources:
+  - group: "rbac.authorization.k8s.io"
+    resources: ["*"]
+# Catch-all rule for other resources
+- level: Metadata
+  resources:
+  - group: "*"
+    resources: ["*"]

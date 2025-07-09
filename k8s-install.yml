@@ -1,0 +1,95 @@
+---
+- name: Install Kubernetes cluster
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Install required system packages
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+
+    - name: Add Kubernetes apt key
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes
+
+    - name: Install Kubernetes packages
+      apt:
+        name: "{{ packages }}"
+        state: present
+        update_cache: yes
+      vars:
+        packages:
+          - kubelet
+          - kubeadm
+          - kubectl
+
+    - name: Hold Kubernetes packages at current version
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Initialize Kubernetes cluster
+      command: >
+        kubeadm init 
+        --pod-network-cidr={{ k8s_pod_cidr }} 
+        --service-cidr={{ k8s_service_cidr }} 
+        --kubernetes-version={{ k8s_version }}
+      register: kubeadm_init
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory for kang user
+      file:
+        path: /home/kang/.kube
+        state: directory
+        owner: kang
+        group: kang
+        mode: '0755'
+
+    - name: Copy admin.conf to user's kube config
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/kang/.kube/config
+        remote_src: yes
+        owner: kang
+        group: kang
+        mode: '0600'
+
+    - name: Install Flannel CNI
+      command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+      become_user: kang
+      environment:
+        KUBECONFIG: /home/kang/.kube/config
+
+    - name: Remove master node taint
+      command: kubectl taint nodes --all node-role.kubernetes.io/master-
+      become_user: kang
+      environment:
+        KUBECONFIG: /home/kang/.kube/config
+      ignore_errors: yes
+
+    - name: Remove control-plane taint
+      command: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+      become_user: kang
+      environment:
+        KUBECONFIG: /home/kang/.kube/config
+      ignore_errors: yes

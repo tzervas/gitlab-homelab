@@ -1,0 +1,54 @@
+---
+- name: Clean up existing Kubernetes cluster
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Drain all nodes
+      command: kubectl drain {{ item }} --ignore-daemonsets --delete-emptydir-data
+      loop: "{{ groups['homelab'] }}"
+      ignore_errors: yes
+
+    - name: Reset kubeadm
+      command: kubeadm reset -f
+      ignore_errors: yes
+
+    - name: Remove kubernetes packages
+      apt:
+        name: "{{ packages }}"
+        state: absent
+        purge: yes
+      vars:
+        packages:
+          - kubelet
+          - kubeadm
+          - kubectl
+          - kubernetes-cni
+
+    - name: Remove Kubernetes directories
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/kubernetes/
+        - /var/lib/kubelet/
+        - /var/lib/etcd/
+        - /var/lib/cni/
+        - /etc/cni/
+        - /var/log/kubernetes/
+        - ~/.kube/
+
+    - name: Remove iptables rules
+      command: "{{ item }}"
+      loop:
+        - iptables -F
+        - iptables -X
+        - iptables -t nat -F
+        - iptables -t nat -X
+        - iptables -t mangle -F
+        - iptables -t mangle -X
+      ignore_errors: yes
+
+    - name: Restart containerd
+      service:
+        name: containerd
+        state: restarted

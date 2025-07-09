@@ -1,0 +1,38 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: audit-alerts
+  namespace: monitoring
+spec:
+  groups:
+  - name: audit.rules
+    rules:
+    - alert: HighRateOfAuthFailures
+      expr: |
+        sum(rate(apiserver_audit_event_total{level="RequestResponse",verb="create",user!="system:serviceaccount:*",response_code=~"4.*|5.*"}[5m])) > 10
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: "High rate of authentication failures detected"
+        summary: "Elevated authentication failures"
+
+    - alert: UnauthorizedAccessAttempt
+      expr: |
+        sum(rate(apiserver_audit_event_total{level="RequestResponse",user="system:anonymous"}[5m])) > 5
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        description: "Multiple unauthorized access attempts detected"
+        summary: "Security violation attempts"
+
+    - alert: SensitiveResourceAccess
+      expr: |
+        sum(rate(apiserver_audit_event_total{level="RequestResponse",resource=~"secrets|configmaps"}[5m])) > 20
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        description: "High rate of access to sensitive resources detected"
+        summary: "Sensitive resource access spike"
