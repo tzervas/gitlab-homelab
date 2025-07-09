@@ -1,0 +1,162 @@
+---
+- name: Setup Kubernetes Audit Logging
+  hosts: homelab
+  become: true
+  tasks:
+    - name: Create required directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /etc/kubernetes/audit
+        - /var/log/kubernetes/audit
+        - /etc/logrotate.d
+
+    - name: Copy audit policy configuration
+      copy:
+        src: files/audit-policy.yaml
+        dest: /etc/kubernetes/audit/audit-policy.yaml
+        mode: '0644'
+
+    - name: Copy logrotate configuration
+      copy:
+        src: files/k8s-audit-logrotate.conf
+        dest: /etc/logrotate.d/kubernetes-audit
+        mode: '0644'
+
+    - name: Create logging namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: logging
+
+    - name: Create monitoring namespace
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monitoring
+
+    - name: Apply Fluentd configuration
+      kubernetes.core.k8s:
+        state: present
+        src: files/fluentd-config.yaml
+
+    - name: Apply audit alerts configuration
+      kubernetes.core.k8s:
+        state: present
+        src: files/audit-alerts.yaml
+
+    - name: Create monitoring namespace if not exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monitoring
+
+    - name: Deploy Grafana
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: grafana
+            namespace: monitoring
+          spec:
+            selector:
+              matchLabels:
+                app: grafana
+            template:
+              metadata:
+                labels:
+                  app: grafana
+              spec:
+                containers:
+                - name: grafana
+                  image: grafana/grafana:latest
+                  ports:
+                  - containerPort: 3000
+                  volumeMounts:
+                  - name: grafana-config
+                    mountPath: /etc/grafana/provisioning
+                  - name: dashboards
+                    mountPath: /var/lib/grafana/dashboards
+                volumes:
+                - name: grafana-config
+                  configMap:
+                    name: grafana-config
+                - name: dashboards
+                  configMap:
+                    name: grafana-dashboards
+
+    - name: Create Grafana ConfigMap for configuration
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: grafana-config
+            namespace: monitoring
+          data:
+            datasources.yaml: |
+              {{ lookup('file', 'files/grafana-values.yaml') | from_yaml | to_nice_yaml }}
+
+    - name: Create Grafana ConfigMap for dashboards
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: grafana-dashboards
+            namespace: monitoring
+          data:
+            'audit-dashboard.json': |
+              {{ lookup('file', 'files/audit-dashboard.json') | to_nice_json }}
+
+    - name: Create Grafana Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: grafana
+            namespace: monitoring
+          spec:
+            selector:
+              app: grafana
+            ports:
+            - port: 80
+              targetPort: 3000
+            type: LoadBalancer
+
+    - name: Update kube-apiserver configuration
+      lineinfile:
+        path: /etc/kubernetes/manifests/kube-apiserver.yaml
+        insertafter: "    - kube-apiserver"
+        line: "    - --{{ item }}"
+        state: present
+      loop:
+        - "audit-policy-file=/etc/kubernetes/audit/audit-policy.yaml"
+        - "audit-log-path=/var/log/kubernetes/audit/audit.log"
+        - "audit-log-maxage=7"
+        - "audit-log-maxbackup=4"
+        - "audit-log-maxsize=100"
+      notify: Restart kubelet
+
+  handlers:
+    - name: Restart kubelet
+      service:
+        name: kubelet
+        state: restarted
