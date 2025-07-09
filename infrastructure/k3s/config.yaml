@@ -1,0 +1,28 @@
+# K3s Configuration for GitLab HomeLab PoC
+# Reference: https://docs.k3s.io/installation/configuration
+
+# Node configuration
+node-name: gitlab-homelab-poc
+node-ip: # To be set during installation
+
+# Disable components we don't need for PoC
+disable:
+  - traefik # We'll configure our own ingress
+  - servicelb # We'll use MetalLB
+
+# Storage configuration
+default-local-storage-path: /opt/k3s-storage
+
+# Resource limits
+kubelet-arg:
+  - "kube-reserved=cpu=1,memory=2Gi"
+  - "system-reserved=cpu=1,memory=1Gi"
+  - "eviction-hard=memory.available<500Mi"
+
+# Security configuration
+write-kubeconfig-mode: "0600"
+protect-kernel-defaults: true
+secrets-encryption: true
+
+# Logging
+log-level: info

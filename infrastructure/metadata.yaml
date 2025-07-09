@@ -1,0 +1,71 @@
+---
+version: '0.1.0'
+phase: 'PoC'
+components:
+  kubernetes:
+    distribution: 'k3s'
+    version: '1.27'  # Latest stable
+    mode: 'single-node'
+    
+  core:
+    metallb:
+      version: '0.13.10'  # Latest stable
+      chart_version: '0.13.10'
+      namespace: 'metallb-system'
+    
+    ingress-nginx:
+      version: '1.8.1'  # Latest stable
+      chart_version: '4.7.1'
+      namespace: 'ingress-nginx'
+    
+  gitlab:
+    version: '16.1.2'  # Latest stable
+    chart_version: '7.2.2'
+    namespace: 'gitlab'
+    features:
+      - git
+      - cicd
+      - container_registry
+      - basic_pages
+    
+  monitoring:
+    prometheus:
+      version: '2.45.0'  # Latest stable
+      chart_version: '23.1.0'
+      namespace: 'monitoring'
+    
+    grafana:
+      version: '10.0.3'  # Latest stable
+      chart_version: '6.57.4'
+      namespace: 'monitoring'
+    
+  backup:
+    schedule: 'manual'
+    retention: '5'
+    type: 'full'
+    storage_path: '/opt/gitlab-backup'
+
+resource_allocation:
+  gitlab:
+    requests:
+      cpu: "4"
+      memory: "16Gi"
+      storage: "200Gi"
+    limits:
+      cpu: "6"
+      memory: "24Gi"
+  
+  monitoring:
+    requests:
+      cpu: "1"
+      memory: "4Gi"
+      storage: "50Gi"
+    limits:
+      cpu: "2"
+      memory: "6Gi"
+  
+  system:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+      storage: "50Gi"
