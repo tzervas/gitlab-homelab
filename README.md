@@ -135,13 +135,23 @@ bash scripts/example_usage.sh
 
 #### Local Development
 
-```bash
-# Install pre-commit hooks
-pip install pre-commit
-pre-commit install
+See the [Developer Guide](docs/developer_guide.md) for detailed setup instructions.
 
-# Install Python dependencies
-pip install black mypy ruff pytest
+```bash
+# Install UV package manager
+pip install uv
+
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Linux/macOS
+# or .venv\Scripts\activate on Windows
+
+# Install dependencies with UV
+uv sync
+
+# Install pre-commit hooks
+uv add pre-commit --dev
+pre-commit install
 
 # Install system dependencies
 sudo apt-get install jq shellcheck  # On Ubuntu/Debian
